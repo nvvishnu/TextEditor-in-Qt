@@ -1,0 +1,22 @@
+<RCC>
+    <qresource prefix="/icons">
+        <file>Bold.png</file>
+        <file>Copy.png</file>
+        <file>Exit.png</file>
+        <file>Find.png</file>
+        <file>Font.png</file>
+        <file>FontColor.png</file>
+        <file>FontSize.png</file>
+        <file>italic.png</file>
+        <file>paste.png</file>
+        <file>Redo.png</file>
+        <file>underline.png</file>
+        <file>Undo.png</file>
+        <file>New.png</file>
+        <file>Open.png</file>
+        <file>Save.png</file>
+        <file>Replace.png</file>
+        <file>Cut.png</file>
+        <file>LineNumber.png</file>
+    </qresource>
+</RCC>
