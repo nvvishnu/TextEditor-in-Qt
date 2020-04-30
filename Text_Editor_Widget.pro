@@ -20,7 +20,6 @@ SOURCES += \
     mainwindow.cpp
 
 HEADERS += \
-    TextEdit.h \
     mainwindow.h
 
 FORMS += \

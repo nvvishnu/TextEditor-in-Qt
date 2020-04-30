@@ -1,6 +1,6 @@
 #ifndef MAINWINDOW_H
 #define MAINWINDOW_H
-#include "TextEdit.h"
+//#include "TextEdit.h"
 #include <QMainWindow>
 #include <QFile>
 #include <QFileDialog>
@@ -58,15 +58,15 @@ private slots:
 
     void on_actionCursor_Line_Number_triggered();
 
-    void about();
+    //void about();
 private:
     Ui::MainWindow *ui;
     QString currentfile="";
     QString lastsaved;
-    void createMenu();
+    /*void createMenu();
    QAbstractItemModel *modelFromFile(const QString& fileName);
    QCompleter *completer = nullptr;
-   TextEdit *completingTextEdit;
+   TextEdit *completingTextEdit;*/
 
 };
 

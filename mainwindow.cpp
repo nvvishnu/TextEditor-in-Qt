@@ -42,7 +42,7 @@
 using namespace std;
 
 
-TextEdit::TextEdit(QWidget *parent)
+/*TextEdit::TextEdit(QWidget *parent)
     : QTextEdit(parent)
 {
     setPlainText(tr("This TextEdit provides autocompletions for words that have more than"
@@ -142,16 +142,16 @@ void TextEdit::keyPressEvent(QKeyEvent *e)
                    + c->popup()->verticalScrollBar()->sizeHint().width());
        c->complete(cr); // popup it up!
    }
-
+*/
 /*
  * Mainwindow constructor
  */
 MainWindow::MainWindow(QWidget *parent):QMainWindow(parent),ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
-    //this->setCentralWidget(ui->textEdit);
-    //ui->textEdit->setFontWeight(QFont::Thin);
-    createMenu();
+    this->setCentralWidget(ui->textEdit);
+    ui->textEdit->setFontWeight(QFont::Thin);
+    /*createMenu();
     completingTextEdit = new TextEdit;
     completer = new QCompleter(this);
     completer->setModel(modelFromFile(":/resources/wordlist.txt"));
@@ -161,10 +161,10 @@ MainWindow::MainWindow(QWidget *parent):QMainWindow(parent),ui(new Ui::MainWindo
     completingTextEdit->setCompleter(completer);
     setCentralWidget(completingTextEdit);
      resize(500, 300);
-     setWindowTitle(tr("Completer"));
+     setWindowTitle(tr("Completer"));*/
 }
 
-void MainWindow::createMenu()
+/*void MainWindow::createMenu()
 {
     QAction *exitAction = new QAction(tr("Exit"), this);
     QAction *aboutAct = new QAction(tr("About"), this);
@@ -211,7 +211,7 @@ void MainWindow::about()
         "different features of the QCompleter class."));
 }
 
-
+*/
 
 
 /*
@@ -227,7 +227,7 @@ MainWindow::~MainWindow()
 */
 void MainWindow::on_actionNew_triggered()
 {
-    /*lastsaved="";
+    lastsaved="";
     QString current=ui->textEdit->toPlainText();
     if(current!=lastsaved) // Check if current file is saved
     {
@@ -254,7 +254,7 @@ void MainWindow::on_actionNew_triggered()
         currentfile.clear();
         ui->textEdit->setText(QString());
         setWindowTitle("Untitled"); // A New File is named Untitled by default
-    }*/
+    }
 
 }
 
@@ -263,7 +263,7 @@ void MainWindow::on_actionNew_triggered()
 */
 void MainWindow::on_actionOpen_triggered()
 {
-   /* QString current=ui->textEdit->toPlainText();
+    QString current=ui->textEdit->toPlainText();
     if(current!=lastsaved) //Check current file is saved
     {
         QMessageBox modified;
@@ -291,7 +291,7 @@ void MainWindow::on_actionOpen_triggered()
         QTextStream in(&file);
         QString text = in.readAll();
         ui->textEdit->setText(text); //Get contents of file into TextEdit window
-        file.close();*/
+        file.close();
 }
 
 /*
@@ -299,7 +299,7 @@ void MainWindow::on_actionOpen_triggered()
 */
 void MainWindow::on_actionSave_triggered()
 {
-      /*  QString fileName = QFileDialog::getSaveFileName(this, "Save as"); //Get file name to save as
+        QString fileName = QFileDialog::getSaveFileName(this, "Save as"); //Get file name to save as
         QFile file(fileName);
 
         //Check if file could be opened
@@ -316,7 +316,7 @@ void MainWindow::on_actionSave_triggered()
         QString text = ui->textEdit->toPlainText();
         out << text; //Write contents in QTextEdit into the file
         lastsaved=text;
-        file.close();*/
+        file.close();
 }
 
 /*
@@ -332,7 +332,7 @@ void MainWindow::on_actionCut_triggered()
 */
 void MainWindow::on_actionCopy_triggered()
 {
-    completingTextEdit->copy();
+    ui->textEdit->copy();
 }
 
 /*
@@ -340,7 +340,7 @@ void MainWindow::on_actionCopy_triggered()
 */
 void MainWindow::on_actionPaste_triggered()
 {
-    completingTextEdit->paste();
+   ui->textEdit->paste();
 }
 
 /*
