@@ -40,4 +40,6 @@ Qt uses Slot and Signal technique. A signal is emitted when a particular event o
 QCompleter is used to provide auto completions in any Qt widget, such as QLineEdit and QComboBox. When the user starts typing a word, QCompleter suggests possible ways of completing the word, based on a word list. The word list is provided as a QAbstractItemModel.                                      
 
 Various other classes like QTextCursor, QString, QInputDialog, QLineEdit, QScrollBar, QEvent, QStringList, QMessageBox etc. were also used. Check the code for all libraries being used.
+
+
 Check https://github.com/nvvishnu/TextEditor-Application for the application.
