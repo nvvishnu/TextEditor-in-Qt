@@ -1,6 +1,6 @@
 #ifndef MAINWINDOW_H
 #define MAINWINDOW_H
-//#include "TextEdit.h"
+#include "TextEdit.h"
 #include <QMainWindow>
 #include <QFile>
 #include <QFileDialog>
@@ -23,6 +23,7 @@ public:
     ~MainWindow();
 
 private slots:
+
     // These functions correspond to various buttons
     void on_actionNew_triggered();
 
@@ -58,15 +59,16 @@ private slots:
 
     void on_actionCursor_Line_Number_triggered();
 
-    //void about();
 private:
     Ui::MainWindow *ui;
     QString currentfile="";
     QString lastsaved;
-    /*void createMenu();
+
+    //QCompleter for autocompletion of word
+
    QAbstractItemModel *modelFromFile(const QString& fileName);
    QCompleter *completer = nullptr;
-   TextEdit *completingTextEdit;*/
+   TextEdit *completingTextEdit;
 
 };
 

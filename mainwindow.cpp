@@ -17,6 +17,7 @@
  *           Text_Editor_Widget.pro  -      Qt Project File for building of application
  *           Headers
  *                  mainwindow.h     -      Header file for mainwindow in our UI
+ *                  TextEdit.h       -      Definition of TextEdit class which is the central Widget
  *           Forms(Sources)
  *                  main.cpp         -      Contains main program
  *                  mainwindow.cpp   -      Contains functionalities of mainwindow
@@ -29,11 +30,11 @@
 
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
+#include "TextEdit.h"
 #include <QInputDialog>
 #include <QLineEdit>
 #include <iostream>
 #include <QListWidget>
-
 #include <QKeyEvent>
 #include <QScrollBar>
 #include <QStringListModel>
@@ -41,146 +42,160 @@
 
 using namespace std;
 
-
-/*TextEdit::TextEdit(QWidget *parent)
+/*
+ * Constructor for TextEdit
+*/
+TextEdit::TextEdit(QWidget *parent)
     : QTextEdit(parent)
 {
-    setPlainText(tr("This TextEdit provides autocompletions for words that have more than"
-                    " 3 characters. You can trigger autocompletion using ") +
-                    QKeySequence("Ctrl+E").toString(QKeySequence::NativeText));
+
 }
 
+/*
+ * Destructor for TextEdit
+*/
 TextEdit::~TextEdit()
 {
 }
 
-void TextEdit::setCompleter(QCompleter *completer)
+/*
+ * Used to set up a completer
+*/
+void TextEdit::completeword(QCompleter *completer)
 {
-    if (c)
-        c->disconnect(this);
+    if (word)
+        word->disconnect(this);  //Disconnect the signal from the slot
 
-    c = completer;
+    word = completer;
 
-    if (!c)
+    if (!word)
         return;
 
-    c->setWidget(this);
-    c->setCompletionMode(QCompleter::PopupCompletion);
-    c->setCaseSensitivity(Qt::CaseInsensitive);
-    QObject::connect(c, QOverload<const QString &>::of(&QCompleter::activated),
-                     this, &TextEdit::insertCompletion);
+    word->setWidget(this); //Completer acts on this widget
+    word->setCompletionMode(QCompleter::PopupCompletion);  // A pop menu printing options is displayed
+    word->setCaseSensitivity(Qt::CaseInsensitive); // Make word matching case insensitive
+
+    // Connect activated signal with insertword slot.Activated signal is sent when an item in the popup() is selected by the user
+
+    QObject::connect(word, QOverload<const QString &>::of(&QCompleter::activated),this, &TextEdit::insertword);
 }
 
+/*
+ * Return the QCompleter
+*/
 QCompleter *TextEdit::completer() const
 {
-    return c;
+    return word;
 }
-void TextEdit::insertCompletion(const QString &completion)
+
+/*
+ * Inserts word selected by user into the current cursor position. It is trigerred when selects a word from the popup options
+*/
+void TextEdit::insertword(const QString &completion)
 {
-    if (c->widget() != this)
-        return;
-    QTextCursor tc = textCursor();
-    int extra = completion.length() - c->completionPrefix().length();
-    tc.movePosition(QTextCursor::Left);
-    tc.movePosition(QTextCursor::EndOfWord);
-    tc.insertText(completion.right(extra));
-    setTextCursor(tc);
+    QTextCursor ins = textCursor();
+    int diff = completion.length() - word->completionPrefix().length();
+    ins.movePosition(QTextCursor::Left);
+    ins.movePosition(QTextCursor::EndOfWord);
+    ins.insertText(completion.right(diff)); //Insert the rest of strin(completion) into TextEdit
+    setTextCursor(ins); //Cursor is set at the end of word
 }
-QString TextEdit::textUnderCursor() const
+
+/*
+ * Select the word under the cursor and returns it
+*/
+QString TextEdit::currText() const
 {
-    QTextCursor tc = textCursor();
-    tc.select(QTextCursor::WordUnderCursor);
-    return tc.selectedText();
+    QTextCursor ins = textCursor();
+    ins.select(QTextCursor::WordUnderCursor);
+    return ins.selectedText();
 }
+
+/*
+ * Handle keyboard focus events
+*/
 void TextEdit::focusInEvent(QFocusEvent *e)
 {
-    if (c)
-        c->setWidget(this);
+    if (word)
+        word->setWidget(this);
     QTextEdit::focusInEvent(e);
 }
+
+/*
+ * Ignore certain key events to let completer handle them
+ */
 void TextEdit::keyPressEvent(QKeyEvent *e)
 {
-    if (c && c->popup()->isVisible()) {
-        // The following keys are forwarded by the completer to the widget
-       switch (e->key()) {
-       case Qt::Key_Enter:
-       case Qt::Key_Return:
-       case Qt::Key_Escape:
-       case Qt::Key_Tab:
-       case Qt::Key_Backtab:
-            e->ignore();
-            return; // let the completer do default behavior
-       default:
-           break;
+    if (word && word->popup()->isVisible()) {
+        // Completer forward keys to widget
+       switch (e->key())
+       {
+            case Qt::Key_Enter:
+            case Qt::Key_Return:
+            case Qt::Key_Escape:
+            case Qt::Key_Tab:
+            case Qt::Key_Backtab:
+                e->ignore();
+                return; // Completer default behavior
+            default:
+                break;
        }
     }
 
-    const bool isShortcut = (e->modifiers().testFlag(Qt::ControlModifier) && e->key() == Qt::Key_E); // CTRL+E
-    if (!c || !isShortcut) // do not process the shortcut when we have a completer
+    //Completer should not respond to certain modifiers and shortcuts
+
+    const bool togg = (e->modifiers().testFlag(Qt::ControlModifier) && e->key() == Qt::Key_E); // CTRL+E shorcut
+    if (!word || !togg)
         QTextEdit::keyPressEvent(e);
-    const bool ctrlOrShift = e->modifiers().testFlag(Qt::ControlModifier) ||
-                                e->modifiers().testFlag(Qt::ShiftModifier);
-       if (!c || (ctrlOrShift && e->text().isEmpty()))
+    const bool ok1 = e->modifiers().testFlag(Qt::ControlModifier) || e->modifiers().testFlag(Qt::ShiftModifier);
+    if (!word || (ok1 && e->text().isEmpty()))
            return;
 
-       static QString eow("~!@#$%^&*()_+{}|:\"<>?,./;'[]\\-="); // end of word
-       const bool hasModifier = (e->modifiers() != Qt::NoModifier) && !ctrlOrShift;
-       QString completionPrefix = textUnderCursor();
+     static QString end_word("~!@#$%^&*()_+{}|:\"<>?,./;'[]\\-="); // end of word
+     const bool ok2 = (e->modifiers() != Qt::NoModifier) && !ok1;
+     QString comp_word = currText();
 
-       if (!isShortcut && (hasModifier || e->text().isEmpty()|| completionPrefix.length() < 3
-                         || eow.contains(e->text().right(1)))) {
-           c->popup()->hide();
+     if (!togg && (ok2 || e->text().isEmpty()|| comp_word.length() < 3 || end_word.contains(e->text().right(1))))
+     {
+           word->popup()->hide();
            return;
+     }
+
+       if (comp_word != word->completionPrefix())
+       {
+           word->setCompletionPrefix(comp_word);
+           word->popup()->setCurrentIndex(word->completionModel()->index(0, 0));
        }
 
-       if (completionPrefix != c->completionPrefix()) {
-           c->setCompletionPrefix(completionPrefix);
-           c->popup()->setCurrentIndex(c->completionModel()->index(0, 0));
-       }
-       QRect cr = cursorRect();
-       cr.setWidth(c->popup()->sizeHintForColumn(0)
-                   + c->popup()->verticalScrollBar()->sizeHint().width());
-       c->complete(cr); // popup it up!
+       QRect curr_cursor = cursorRect();
+       curr_cursor.setWidth(word->popup()->sizeHintForColumn(0)
+                   + word->popup()->verticalScrollBar()->sizeHint().width());
+       word->complete(curr_cursor);
    }
-*/
+
 /*
  * Mainwindow constructor
  */
 MainWindow::MainWindow(QWidget *parent):QMainWindow(parent),ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
-    this->setCentralWidget(ui->textEdit);
-    ui->textEdit->setFontWeight(QFont::Thin);
-    /*createMenu();
-    completingTextEdit = new TextEdit;
+    completingTextEdit = new TextEdit; //Set up TextEdit block
+
+    //Set up QCompleter
+
     completer = new QCompleter(this);
-    completer->setModel(modelFromFile(":/resources/wordlist.txt"));
+    completer->setModel(modelFromFile(":/icons/wordlist.txt"));
     completer->setModelSorting(QCompleter::CaseInsensitivelySortedModel);
     completer->setCaseSensitivity(Qt::CaseInsensitive);
     completer->setWrapAround(false);
-    completingTextEdit->setCompleter(completer);
-    setCentralWidget(completingTextEdit);
-     resize(500, 300);
-     setWindowTitle(tr("Completer"));*/
+    completingTextEdit->completeword(completer);
+    this->setCentralWidget(completingTextEdit);
+     completingTextEdit->setFontWeight(QFont::Thin);
 }
 
-/*void MainWindow::createMenu()
-{
-    QAction *exitAction = new QAction(tr("Exit"), this);
-    QAction *aboutAct = new QAction(tr("About"), this);
-    QAction *aboutQtAct = new QAction(tr("About Qt"), this);
-
-    connect(exitAction, &QAction::triggered, qApp, &QApplication::quit);
-    connect(aboutAct, &QAction::triggered, this, &MainWindow::about);
-    connect(aboutQtAct, &QAction::triggered, qApp, &QApplication::aboutQt);
-
-    QMenu *fileMenu = menuBar()->addMenu(tr("File"));
-    fileMenu->addAction(exitAction);
-
-    QMenu *helpMenu = menuBar()->addMenu(tr("About"));
-    helpMenu->addAction(aboutAct);
-    helpMenu->addAction(aboutQtAct);
-}
+/*
+ * Extract contents of wordlist.txt as a StringList
+*/
 
 QAbstractItemModel *MainWindow::modelFromFile(const QString& fileName)
 {
@@ -205,15 +220,6 @@ QAbstractItemModel *MainWindow::modelFromFile(const QString& fileName)
     return new QStringListModel(words, completer);
 }
 
-void MainWindow::about()
-{
-    QMessageBox::about(this, tr("About"), tr("This example demonstrates the "
-        "different features of the QCompleter class."));
-}
-
-*/
-
-
 /*
  * Mainwindow destructor
 */
@@ -228,7 +234,7 @@ MainWindow::~MainWindow()
 void MainWindow::on_actionNew_triggered()
 {
     lastsaved="";
-    QString current=ui->textEdit->toPlainText();
+    QString current=completingTextEdit->toPlainText();
     if(current!=lastsaved) // Check if current file is saved
     {
         // Check if user wants to save the current file or discard it
@@ -245,14 +251,14 @@ void MainWindow::on_actionNew_triggered()
         else if(ret==0x00800000)
         {
             currentfile.clear();
-            ui->textEdit->setText(QString());
+            completingTextEdit->setText(QString());
             setWindowTitle("Untitled");
         }
       }
     else
     {
         currentfile.clear();
-        ui->textEdit->setText(QString());
+        completingTextEdit->setText(QString());
         setWindowTitle("Untitled"); // A New File is named Untitled by default
     }
 
@@ -263,7 +269,7 @@ void MainWindow::on_actionNew_triggered()
 */
 void MainWindow::on_actionOpen_triggered()
 {
-    QString current=ui->textEdit->toPlainText();
+    QString current=completingTextEdit->toPlainText();
     if(current!=lastsaved) //Check current file is saved
     {
         QMessageBox modified;
@@ -290,7 +296,7 @@ void MainWindow::on_actionOpen_triggered()
         setWindowTitle(openfile);
         QTextStream in(&file);
         QString text = in.readAll();
-        ui->textEdit->setText(text); //Get contents of file into TextEdit window
+        completingTextEdit->setText(text); //Get contents of file into TextEdit window
         file.close();
 }
 
@@ -313,7 +319,7 @@ void MainWindow::on_actionSave_triggered()
         currentfile = fileName;
         setWindowTitle(fileName);
         QTextStream out(&file);
-        QString text = ui->textEdit->toPlainText();
+        QString text = completingTextEdit->toPlainText();
         out << text; //Write contents in QTextEdit into the file
         lastsaved=text;
         file.close();
@@ -324,7 +330,7 @@ void MainWindow::on_actionSave_triggered()
 */
 void MainWindow::on_actionCut_triggered()
 {
-    ui->textEdit->cut();
+    completingTextEdit->cut();
 }
 
 /*
@@ -332,7 +338,7 @@ void MainWindow::on_actionCut_triggered()
 */
 void MainWindow::on_actionCopy_triggered()
 {
-    ui->textEdit->copy();
+    completingTextEdit->copy();
 }
 
 /*
@@ -340,7 +346,7 @@ void MainWindow::on_actionCopy_triggered()
 */
 void MainWindow::on_actionPaste_triggered()
 {
-   ui->textEdit->paste();
+   completingTextEdit->paste();
 }
 
 /*
@@ -348,7 +354,7 @@ void MainWindow::on_actionPaste_triggered()
 */
 void MainWindow::on_actionUndo_triggered()
 {
-    ui->textEdit->undo();
+    completingTextEdit->undo();
 }
 
 /*
@@ -356,14 +362,14 @@ void MainWindow::on_actionUndo_triggered()
 */
 void MainWindow::on_actionRedo_triggered()
 {
-    ui->textEdit->redo();
+    completingTextEdit->redo();
 }
 
 /*
  * Used to exit the application
 */
 void MainWindow::on_actionExit_triggered() {
-    QString current=ui->textEdit->toPlainText();
+    QString current=completingTextEdit->toPlainText();
     if(current!=lastsaved) //Check if file has been saved
       {
 
@@ -392,10 +398,10 @@ void MainWindow::on_actionExit_triggered() {
 */
 void MainWindow::on_actionBold_triggered()
 {
-    if(ui->textEdit->fontWeight()!=QFont::Bold)
-    ui->textEdit->setFontWeight(QFont::Bold);
+    if(completingTextEdit->fontWeight()!=QFont::Bold)
+    completingTextEdit->setFontWeight(QFont::Bold);
     else
-    ui->textEdit->setFontWeight(QFont::Thin);
+    completingTextEdit->setFontWeight(QFont::Thin);
 }
 
 /*
@@ -405,10 +411,10 @@ void MainWindow::on_actionUnderline_triggered()
 {
     //fontUnderline returns true if the last character in selected string is underlined
 
-    if(ui->textEdit->fontUnderline())
-    ui->textEdit->setFontUnderline(false);
+    if(completingTextEdit->fontUnderline())
+    completingTextEdit->setFontUnderline(false);
     else
-    ui->textEdit->setFontUnderline(true);
+    completingTextEdit->setFontUnderline(true);
 }
 
 /*
@@ -417,10 +423,10 @@ void MainWindow::on_actionUnderline_triggered()
 void MainWindow::on_actionItalics_triggered()
 {
     //fontItalic returns true if the last character in selected string is italicised
-    if(ui->textEdit->fontItalic())
-    ui->textEdit->setFontItalic(false);
+    if(completingTextEdit->fontItalic())
+    completingTextEdit->setFontItalic(false);
     else
-    ui->textEdit->setFontItalic(true);
+    completingTextEdit->setFontItalic(true);
 }
 
 /*
@@ -433,9 +439,9 @@ void MainWindow::on_actionFont_size_triggered()
 
     //Opens a InputDialog where font size is to be entered
 
-    qreal i = QInputDialog::getDouble(this, tr("Font Size "),tr("Enter Font Size: "), ui->textEdit->fontPointSize(), 0, 1638, 4, &ok,a,1);
+    qreal i = QInputDialog::getDouble(this, tr("Font Size "),tr("Enter Font Size: "), completingTextEdit->fontPointSize(), 0, 1638, 4, &ok,a,1);
     if(ok)
-    ui->textEdit->setFontPointSize(i);
+    completingTextEdit->setFontPointSize(i);
 
 }
 // 0 is minimum font point size and 1638 is maximum font point size with step size=1, decimal places=4
@@ -464,32 +470,32 @@ void MainWindow::on_actionFont_Color_triggered()
     QString item = QInputDialog::getItem(this, tr("Text Color"),tr("Select Color: "), colors, 0, false, &ok);
     string c=item.toStdString();
         if(c=="Red")
-        ui->textEdit->setTextColor(red);
+        completingTextEdit->setTextColor(red);
         else if(c=="Green")
-        ui->textEdit->setTextColor(green);
+        completingTextEdit->setTextColor(green);
         else if(c=="Blue")
-        ui->textEdit->setTextColor(blue);
+        completingTextEdit->setTextColor(blue);
         else if(c=="Orange")
-        ui->textEdit->setTextColor(orange);
+        completingTextEdit->setTextColor(orange);
         else if(c=="Violet")
-        ui->textEdit->setTextColor(violet);
+        completingTextEdit->setTextColor(violet);
         else if(c=="Black")
-        ui->textEdit->setTextColor(black);
+        completingTextEdit->setTextColor(black);
         else if(c=="White")
-        ui->textEdit->setTextColor(white);
+        completingTextEdit->setTextColor(white);
         else if(c=="Yellow")
-        ui->textEdit->setTextColor(yellow);
+        completingTextEdit->setTextColor(yellow);
         else if(c=="Custom Color")
         {
             // Enables creating custom colors from RGB values. Popups dialogs for the same
 
-            int x=QInputDialog::getInt(this,tr("Font Color"),tr("Enter R Value: "),ui->textEdit->textColor().red(),0,255,1,&ok1);
-            int y=QInputDialog::getInt(this,tr("Font Color"),tr("Enter G Value: "),ui->textEdit->textColor().green(),0,255,1,&ok2);
-            int z=QInputDialog::getInt(this,tr("Font Color"),tr("Enter B Value: "),ui->textEdit->textColor().blue(),0,255,1,&ok3);
+            int x=QInputDialog::getInt(this,tr("Font Color"),tr("Enter R Value: "),completingTextEdit->textColor().red(),0,255,1,&ok1);
+            int y=QInputDialog::getInt(this,tr("Font Color"),tr("Enter G Value: "),completingTextEdit->textColor().green(),0,255,1,&ok2);
+            int z=QInputDialog::getInt(this,tr("Font Color"),tr("Enter B Value: "),completingTextEdit->textColor().blue(),0,255,1,&ok3);
             if(ok1&&ok2&&ok3)
             {
                 QColor a(x,y,z);
-                ui->textEdit->setTextColor(a);
+                completingTextEdit->setTextColor(a);
             }
         }
 }
@@ -500,7 +506,7 @@ void MainWindow::on_actionFont_Color_triggered()
 void MainWindow::on_actionFind_triggered()
 {
     bool ok,found;
-    QTextCursor original=ui->textEdit->textCursor(); //Save current cursor position to be restored after string search is done
+    QTextCursor original=completingTextEdit->textCursor(); //Save current cursor position to be restored after string search is done
     QStringList act;QString item;string c;
     act<<tr("Find Next")<<tr("Close");
 
@@ -509,7 +515,7 @@ void MainWindow::on_actionFind_triggered()
     QString p = QInputDialog::getText(this, tr("String Search"),tr("Enter String to Search:"), QLineEdit::Normal,QDir::home().dirName(), &ok);
     if(ok)
     {
-        found=ui->textEdit->find(p);
+        found=completingTextEdit->find(p);
         if(found)
         {
             // Lets user continue search or stop search
@@ -531,7 +537,7 @@ void MainWindow::on_actionFind_triggered()
 
         while(c=="Find Next")
         {
-            found=ui->textEdit->find(p);
+            found=completingTextEdit->find(p);
             if(found)
             {
             item=QInputDialog::getItem(this, tr("Find"),tr("Continue Search: "), act, 0, false, &ok);
@@ -547,7 +553,7 @@ void MainWindow::on_actionFind_triggered()
 
          }
     }
-    ui->textEdit->setTextCursor(original);
+    completingTextEdit->setTextCursor(original);
 }
 
 /*
@@ -558,7 +564,7 @@ void MainWindow::on_actionFind_Replace_triggered()
 
     bool ok,found,ok1,ok2;
     QTextCharFormat form;
-    QTextCursor original=ui->textEdit->textCursor();
+    QTextCursor original=completingTextEdit->textCursor();
     QStringList act,repl;QString item,replaceoption;string c,d;
 
     //Declaration of lists for user options
@@ -577,7 +583,7 @@ void MainWindow::on_actionFind_Replace_triggered()
         QString q = QInputDialog::getText(this, tr("String Replace"),tr("Enter String to Replace:"), QLineEdit::Normal,QDir::home().dirName(), &ok2);
         if(ok2)
         {
-            found=ui->textEdit->find(p);
+            found=completingTextEdit->find(p);
 
             if(found)
             {
@@ -599,7 +605,7 @@ void MainWindow::on_actionFind_Replace_triggered()
                     while(found==true) // Replacement occurs as long as a new occurence is found
                     {
 
-                        QTextCursor orign=ui->textEdit->textCursor();QString str;                        
+                        QTextCursor orign=completingTextEdit->textCursor();QString str;
                         QTextCursor *c = new QTextCursor(orign);
 
                         // Select the current occurence of the string and remove it
@@ -613,22 +619,22 @@ void MainWindow::on_actionFind_Replace_triggered()
                         orign.setCharFormat(form); //Restore formatting
 
                         orign.insertText(str); //Insert the modified text at the current position
-                        ui->textEdit->setTextCursor(orign);
-                        found=ui->textEdit->find(p);
+                        completingTextEdit->setTextCursor(orign);
+                        found=completingTextEdit->find(p);
                     }
                     return;
                 }
                 else if(d=="Replace current occurence")
                 {
-                    QTextCursor orign=ui->textEdit->textCursor();QString str;
+                    QTextCursor orign=completingTextEdit->textCursor();QString str;
                     QTextCursor *c = new QTextCursor(orign);
                     c->movePosition(QTextCursor::NextCharacter,QTextCursor::KeepAnchor,p.size());
                     str=c->selectedText();
                     c->removeSelectedText();
                     str.replace(str.indexOf(p), p.size(), q);
                     orign.insertText(str);
-                    ui->textEdit->setTextCursor(orign);
-                    found=ui->textEdit->find(p);
+                    completingTextEdit->setTextCursor(orign);
+                    found=completingTextEdit->find(p);
                 }
                 if(found)
                 {
@@ -645,7 +651,7 @@ void MainWindow::on_actionFind_Replace_triggered()
 
              }
         }
-        ui->textEdit->setTextCursor(original);
+        completingTextEdit->setTextCursor(original);
    }
 }
 //Note that string formatting may not be reflected properly in text to be replaced in certain cases.
@@ -659,12 +665,12 @@ void MainWindow::on_actionFind_Replace_triggered()
 
     // Dialog box to enter line number to be moved to
 
-    int x=QInputDialog::getInt(this,tr("Cursor Positioning"),tr("Enter Line Number: "),ui->textEdit->textCursor().blockNumber(),1,ui->textEdit->toPlainText().split("\n" ).size(),1,&ok);
+    int x=QInputDialog::getInt(this,tr("Cursor Positioning"),tr("Enter Line Number: "),completingTextEdit->textCursor().blockNumber(),1,completingTextEdit->toPlainText().split("\n" ).size(),1,&ok);
     if(ok)
     {
-        ui->textEdit->moveCursor(QTextCursor::Start);
+        completingTextEdit->moveCursor(QTextCursor::Start);
         for(int i=1;i<x;i++)
-        ui->textEdit->moveCursor(QTextCursor::Down);
+        completingTextEdit->moveCursor(QTextCursor::Down);
     }
     // Maximum Line Number allowed is the number of lines in the document
 }
