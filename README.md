@@ -11,7 +11,9 @@ Description             :         This repository consists of an Rich Text Edito
                                   Qt Project File(.pro) contains infomation required by qmake to build application.
                                   qmake tool is used for building application across different platforms.
 
-Contents                :         .png files - These files are icons used for buttons in toolbar
+Contents                :        
+                          
+                                  .png files - These files are icons used for buttons in toolbar
 
                                   Text_Editor_Widget.pro  -      Qt Project File for building of application
                                   
