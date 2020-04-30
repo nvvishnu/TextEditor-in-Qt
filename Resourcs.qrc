@@ -18,5 +18,6 @@
         <file>Replace.png</file>
         <file>Cut.png</file>
         <file>LineNumber.png</file>
+        <file>wordlist.txt</file>
     </qresource>
 </RCC>

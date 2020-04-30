@@ -34,7 +34,114 @@
 #include <iostream>
 #include <QListWidget>
 
+#include <QKeyEvent>
+#include <QScrollBar>
+#include <QStringListModel>
+
+
 using namespace std;
+
+
+TextEdit::TextEdit(QWidget *parent)
+    : QTextEdit(parent)
+{
+    setPlainText(tr("This TextEdit provides autocompletions for words that have more than"
+                    " 3 characters. You can trigger autocompletion using ") +
+                    QKeySequence("Ctrl+E").toString(QKeySequence::NativeText));
+}
+
+TextEdit::~TextEdit()
+{
+}
+
+void TextEdit::setCompleter(QCompleter *completer)
+{
+    if (c)
+        c->disconnect(this);
+
+    c = completer;
+
+    if (!c)
+        return;
+
+    c->setWidget(this);
+    c->setCompletionMode(QCompleter::PopupCompletion);
+    c->setCaseSensitivity(Qt::CaseInsensitive);
+    QObject::connect(c, QOverload<const QString &>::of(&QCompleter::activated),
+                     this, &TextEdit::insertCompletion);
+}
+
+QCompleter *TextEdit::completer() const
+{
+    return c;
+}
+void TextEdit::insertCompletion(const QString &completion)
+{
+    if (c->widget() != this)
+        return;
+    QTextCursor tc = textCursor();
+    int extra = completion.length() - c->completionPrefix().length();
+    tc.movePosition(QTextCursor::Left);
+    tc.movePosition(QTextCursor::EndOfWord);
+    tc.insertText(completion.right(extra));
+    setTextCursor(tc);
+}
+QString TextEdit::textUnderCursor() const
+{
+    QTextCursor tc = textCursor();
+    tc.select(QTextCursor::WordUnderCursor);
+    return tc.selectedText();
+}
+void TextEdit::focusInEvent(QFocusEvent *e)
+{
+    if (c)
+        c->setWidget(this);
+    QTextEdit::focusInEvent(e);
+}
+void TextEdit::keyPressEvent(QKeyEvent *e)
+{
+    if (c && c->popup()->isVisible()) {
+        // The following keys are forwarded by the completer to the widget
+       switch (e->key()) {
+       case Qt::Key_Enter:
+       case Qt::Key_Return:
+       case Qt::Key_Escape:
+       case Qt::Key_Tab:
+       case Qt::Key_Backtab:
+            e->ignore();
+            return; // let the completer do default behavior
+       default:
+           break;
+       }
+    }
+
+    const bool isShortcut = (e->modifiers().testFlag(Qt::ControlModifier) && e->key() == Qt::Key_E); // CTRL+E
+    if (!c || !isShortcut) // do not process the shortcut when we have a completer
+        QTextEdit::keyPressEvent(e);
+    const bool ctrlOrShift = e->modifiers().testFlag(Qt::ControlModifier) ||
+                                e->modifiers().testFlag(Qt::ShiftModifier);
+       if (!c || (ctrlOrShift && e->text().isEmpty()))
+           return;
+
+       static QString eow("~!@#$%^&*()_+{}|:\"<>?,./;'[]\\-="); // end of word
+       const bool hasModifier = (e->modifiers() != Qt::NoModifier) && !ctrlOrShift;
+       QString completionPrefix = textUnderCursor();
+
+       if (!isShortcut && (hasModifier || e->text().isEmpty()|| completionPrefix.length() < 3
+                         || eow.contains(e->text().right(1)))) {
+           c->popup()->hide();
+           return;
+       }
+
+       if (completionPrefix != c->completionPrefix()) {
+           c->setCompletionPrefix(completionPrefix);
+           c->popup()->setCurrentIndex(c->completionModel()->index(0, 0));
+       }
+       QRect cr = cursorRect();
+       cr.setWidth(c->popup()->sizeHintForColumn(0)
+                   + c->popup()->verticalScrollBar()->sizeHint().width());
+       c->complete(cr); // popup it up!
+   }
 
 /*
  * Mainwindow constructor
@@ -42,9 +149,70 @@ using namespace std;
 MainWindow::MainWindow(QWidget *parent):QMainWindow(parent),ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
-    this->setCentralWidget(ui->textEdit);
-    ui->textEdit->setFontWeight(QFont::Thin);
+    //this->setCentralWidget(ui->textEdit);
+    //ui->textEdit->setFontWeight(QFont::Thin);
+    createMenu();
+    completingTextEdit = new TextEdit;
+    completer = new QCompleter(this);
+    completer->setModel(modelFromFile(":/resources/wordlist.txt"));
+    completer->setModelSorting(QCompleter::CaseInsensitivelySortedModel);
+    completer->setCaseSensitivity(Qt::CaseInsensitive);
+    completer->setWrapAround(false);
+    completingTextEdit->setCompleter(completer);
+    setCentralWidget(completingTextEdit);
+     resize(500, 300);
+     setWindowTitle(tr("Completer"));
 }
+
+void MainWindow::createMenu()
+{
+    QAction *exitAction = new QAction(tr("Exit"), this);
+    QAction *aboutAct = new QAction(tr("About"), this);
+    QAction *aboutQtAct = new QAction(tr("About Qt"), this);
+
+    connect(exitAction, &QAction::triggered, qApp, &QApplication::quit);
+    connect(aboutAct, &QAction::triggered, this, &MainWindow::about);
+    connect(aboutQtAct, &QAction::triggered, qApp, &QApplication::aboutQt);
+
+    QMenu *fileMenu = menuBar()->addMenu(tr("File"));
+    fileMenu->addAction(exitAction);
+
+    QMenu *helpMenu = menuBar()->addMenu(tr("About"));
+    helpMenu->addAction(aboutAct);
+    helpMenu->addAction(aboutQtAct);
+}
+
+QAbstractItemModel *MainWindow::modelFromFile(const QString& fileName)
+{
+    QFile file(fileName);
+    if (!file.open(QFile::ReadOnly))
+        return new QStringListModel(completer);
+
+#ifndef QT_NO_CURSOR
+    QGuiApplication::setOverrideCursor(QCursor(Qt::WaitCursor));
+#endif
+    QStringList words;
+
+    while (!file.atEnd()) {
+        QByteArray line = file.readLine();
+        if (!line.isEmpty())
+            words << QString::fromUtf8(line.trimmed());
+    }
+
+#ifndef QT_NO_CURSOR
+    QGuiApplication::restoreOverrideCursor();
+#endif
+    return new QStringListModel(words, completer);
+}
+
+void MainWindow::about()
+{
+    QMessageBox::about(this, tr("About"), tr("This example demonstrates the "
+        "different features of the QCompleter class."));
+}
+
+
+
 
 /*
  * Mainwindow destructor
@@ -59,7 +227,7 @@ MainWindow::~MainWindow()
 */
 void MainWindow::on_actionNew_triggered()
 {
-    lastsaved="";
+    /*lastsaved="";
     QString current=ui->textEdit->toPlainText();
     if(current!=lastsaved) // Check if current file is saved
     {
@@ -86,7 +254,7 @@ void MainWindow::on_actionNew_triggered()
         currentfile.clear();
         ui->textEdit->setText(QString());
         setWindowTitle("Untitled"); // A New File is named Untitled by default
-    }
+    }*/
 
 }
 
@@ -95,7 +263,7 @@ void MainWindow::on_actionNew_triggered()
 */
 void MainWindow::on_actionOpen_triggered()
 {
-    QString current=ui->textEdit->toPlainText();
+   /* QString current=ui->textEdit->toPlainText();
     if(current!=lastsaved) //Check current file is saved
     {
         QMessageBox modified;
@@ -123,7 +291,7 @@ void MainWindow::on_actionOpen_triggered()
         QTextStream in(&file);
         QString text = in.readAll();
         ui->textEdit->setText(text); //Get contents of file into TextEdit window
-        file.close();
+        file.close();*/
 }
 
 /*
@@ -131,7 +299,7 @@ void MainWindow::on_actionOpen_triggered()
 */
 void MainWindow::on_actionSave_triggered()
 {
-        QString fileName = QFileDialog::getSaveFileName(this, "Save as"); //Get file name to save as
+      /*  QString fileName = QFileDialog::getSaveFileName(this, "Save as"); //Get file name to save as
         QFile file(fileName);
 
         //Check if file could be opened
@@ -148,7 +316,7 @@ void MainWindow::on_actionSave_triggered()
         QString text = ui->textEdit->toPlainText();
         out << text; //Write contents in QTextEdit into the file
         lastsaved=text;
-        file.close();
+        file.close();*/
 }
 
 /*
@@ -164,7 +332,7 @@ void MainWindow::on_actionCut_triggered()
 */
 void MainWindow::on_actionCopy_triggered()
 {
-    ui->textEdit->copy();
+    completingTextEdit->copy();
 }
 
 /*
@@ -172,7 +340,7 @@ void MainWindow::on_actionCopy_triggered()
 */
 void MainWindow::on_actionPaste_triggered()
 {
-    ui->textEdit->paste();
+    completingTextEdit->paste();
 }
 
 /*

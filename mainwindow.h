@@ -12,6 +12,8 @@ QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
 QT_END_NAMESPACE
 
+
+
 class MainWindow : public QMainWindow
 {
     Q_OBJECT
@@ -56,11 +58,17 @@ private slots:
 
     void on_actionCursor_Line_Number_triggered();
 
+    void about();
 private:
     Ui::MainWindow *ui;
     QString currentfile="";
     QString lastsaved;
     void createMenu();
+   QAbstractItemModel *modelFromFile(const QString& fileName);
+   QCompleter *completer = nullptr;
+   TextEdit *completingTextEdit;
 
 };
+
+
 #endif // MAINWINDOW_H
